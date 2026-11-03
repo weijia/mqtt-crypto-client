@@ -8,7 +8,7 @@
 - 仓库：<https://github.com/weijia/mqtt-crypto-client>
 - 包名：`mqtt-crypto-client`
 - 运行时：Node.js **18+**（CI 发布使用 Node 24）
-- 依赖：仅 [`mqtt`](https://www.npmjs.com/package/mqtt)；加解密使用内置 `node:crypto`
+- 依赖：Node 端仅 [`mqtt`](https://www.npmjs.com/package/mqtt)，加解密使用内置 `node:crypto`；浏览器 IIFE 内置 crypto-js（仅构建时 devDependency）
 
 ## 安装
 
@@ -26,7 +26,44 @@ import { createClient } from 'mqtt-crypto-client';
 const { createClient } = require('mqtt-crypto-client');
 ```
 
-> ESM 源码直接作为 `import` 入口发布；CJS 由 `esbuild` 打包为单文件 `dist/index.cjs`。发布前 `prepack`/`prepublishOnly` 会自动构建。
+> ESM 源码直接作为 `import` 入口发布；CJS 与浏览器 IIFE 由 `esbuild` 构建。发布前 `prepack`/`prepublishOnly` 会自动构建。
+
+## 浏览器 `<script>` 直引（IIFE）
+
+不经过 bundler，直接用 `<script>` 引入。构建产物暴露全局 `MqttCryptoClient`，包含 `createClient`、加解密工具、信封/topic 工具等全部公开导出。
+
+```html
+<script src="https://unpkg.com/mqtt-crypto-client@0.2.0/dist/index.iife.js"></script>
+<script>
+  const { createClient, encryptPayload, decryptPayload, buildTopic } = MqttCryptoClient;
+
+  const ciphertext = encryptPayload('中文 hello 😀', 'your-secret');
+  console.log(decryptPayload(ciphertext, 'your-secret')); // 中文 hello 😀
+
+  const client = createClient({
+    broker: 'wss://broker.emqx.io:8084/mqtt', // 浏览器只能用 ws/wss
+    topic: buildTopic('secure', 'stock-condition-order'),
+    secret: 'your-secret',
+  });
+  client.on('connect', () => console.log('connected'));
+  client.on('message', ({ command, decrypted }) => console.log(decrypted, command));
+  // await client.connect();
+</script>
+```
+
+CDN 地址模板（`unpkg` / `jsdelivr` 字段均指向 IIFE）：
+
+- `https://unpkg.com/mqtt-crypto-client@0.2.0/dist/index.iife.js`
+- `https://cdn.jsdelivr.net/npm/mqtt-crypto-client@0.2.0/dist/index.iife.js`
+- 省略版本号会取 latest：`https://unpkg.com/mqtt-crypto-client`、`https://cdn.jsdelivr.net/npm/mqtt-crypto-client`
+
+说明：
+
+- 浏览器端使用 **crypto-js** 做同步 AES，格式与 Node 端、原 CryptoJS 实现逐字节一致（`Salted__` + 8 字节 salt + AES-256-CBC + `EVP_BytesToKey(MD5,1)` + PKCS#7 + base64）；Node 端仍用 `node:crypto`，行为不变。
+- 浏览器下 `encryptPayload` 的 `salt` 参数接受 `Uint8Array` 或 crypto-js `WordArray`；`deriveKeyAndIv` 返回 `Uint8Array`。
+- IIFE 内含 mqtt 浏览器构建与 crypto-js，体积较大；Node 用户不需要该产物。
+- 该加密格式没有 MAC/AEAD，不能防篡改，详见下方安全说明。
+- 本地演示：先 `npm run build`，再打开 [`examples/script-tag.html`](./examples/script-tag.html)。
 
 ## 快速开始
 
@@ -59,7 +96,7 @@ await client.sendCommand('list');     // => Promise<msgId>
 // await client.disconnect();
 ```
 
-完整示例见 [`examples/basic.js`](./examples/basic.js) 与 [`examples/request-response.js`](./examples/request-response.js)。
+完整示例见 [`examples/basic.js`](./examples/basic.js)、[`examples/request-response.js`](./examples/request-response.js) 与浏览器直引示例 [`examples/script-tag.html`](./examples/script-tag.html)。
 
 ## API
 
@@ -201,9 +238,9 @@ CryptoJS -> node: OK
 
 ```bash
 npm install
-npm test          # node:test，36 个用例
+npm test          # node:test，45 个用例（含浏览器/Node 互通与 IIFE 冒烟）
 npm run typecheck # tsc checkJs
-npm run build     # ESM 源码 -> dist/index.cjs
+npm run build     # dist/index.cjs + 浏览器 IIFE dist/index.iife.js
 npm pack --dry-run
 ```
 

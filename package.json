@@ -1,6 +1,6 @@
 {
   "name": "mqtt-crypto-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MQTT over WebSocket client with CryptoJS-compatible AES envelope encryption, heartbeat, message deduplication and request/response helpers.",
   "keywords": [
     "mqtt",
@@ -15,6 +15,8 @@
   "main": "./dist/index.cjs",
   "module": "./src/index.js",
   "types": "./types/index.d.ts",
+  "unpkg": "./dist/index.iife.js",
+  "jsdelivr": "./dist/index.iife.js",
   "exports": {
     ".": {
       "types": "./types/index.d.ts",
@@ -35,7 +37,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "node scripts/build-cjs.mjs",
+    "build": "node scripts/build-cjs.mjs && node scripts/build-iife.mjs",
     "test": "node --test",
     "typecheck": "tsc -p tsconfig.json",
     "prepack": "npm run build",
@@ -47,6 +49,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "crypto-js": "^4.2.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.0"
   },

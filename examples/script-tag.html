@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mqtt-crypto-client · script tag demo</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 760px; margin: 32px auto; padding: 0 16px; color: #1f2937; }
+    h1 { font-size: 20px; }
+    textarea, input, button { font: inherit; }
+    textarea { width: 100%; box-sizing: border-box; min-height: 72px; margin: 4px 0 12px; padding: 8px; }
+    input { width: 100%; box-sizing: border-box; margin: 4px 0 12px; padding: 8px; }
+    button { padding: 8px 14px; margin-right: 8px; cursor: pointer; }
+    .row { display: flex; gap: 12px; }
+    .row > * { flex: 1; }
+    .status { padding: 10px 12px; border-radius: 6px; background: #f3f4f6; white-space: pre-wrap; }
+    .ok { background: #ecfdf5; color: #065f46; }
+    .err { background: #fef2f2; color: #991b1b; }
+    .hint { color: #6b7280; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>mqtt-crypto-client · 浏览器专 &lt;script&gt; 直引</h1>
+  <p class="hint">
+    需先在本仓库根目录执行 <code>npm run build</code>，生成 <code>dist/index.iife.js</code> 后再打开本文件。
+    全局名为 <code>MqttCryptoClient</code>。
+  </p>
+
+  <div id="status" class="status">正在检查全局 API…</div>
+
+  <h2 style="font-size:16px;">加解密往返</h2>
+  <label>口令 secret</label>
+  <input id="secret" value="demo-secret" />
+  <label>明文</label>
+  <textarea id="plaintext">{"hello":"中文 😀","n":42}</textarea>
+  <div>
+    <button id="encrypt">加密</button>
+    <button id="decrypt">解密上方密文</button>
+  </div>
+  <label style="display:block;margin-top:12px;">密文（base64）</label>
+  <textarea id="ciphertext" spellcheck="false"></textarea>
+
+  <script src="../dist/index.iife.js"></script>
+  <script>
+    (function () {
+      const status = document.getElementById('status');
+      const secretInput = document.getElementById('secret');
+      const plaintextInput = document.getElementById('plaintext');
+      const ciphertextInput = document.getElementById('ciphertext');
+      const api = window.MqttCryptoClient;
+
+      function setStatus(text, kind) {
+        status.textContent = text;
+        status.className = 'status' + (kind ? ' ' + kind : '');
+      }
+
+      if (!api) {
+        setStatus('未找到 window.MqttCryptoClient。请先运行 npm run build 生成 dist/index.iife.js。', 'err');
+        return;
+      }
+
+      const keys = ['createClient', 'encryptPayload', 'decryptPayload', 'tryDecrypt',
+        'isEncryptedPayload', 'buildEnvelope', 'parseEnvelope', 'buildTopic', 'validateTopic'];
+      const missing = keys.filter((key) => typeof api[key] !== 'function');
+      if (missing.length > 0) {
+        setStatus('全局已加载，但缺少 API: ' + missing.join(', '), 'err');
+        return;
+      }
+      setStatus('全局 MqttCryptoClient 已加载，API 完整（' + keys.length + ' 项检查通过）。', 'ok');
+
+      document.getElementById('encrypt').addEventListener('click', function () {
+        try {
+          const ciphertext = api.encryptPayload(plaintextInput.value, secretInput.value);
+          ciphertextInput.value = ciphertext;
+          setStatus('加密成功：' + ciphertext.length + ' 字符，Salt 头校验=' +
+            api.isEncryptedPayload(ciphertext), 'ok');
+        } catch (error) {
+          setStatus('加密失败：' + (error && error.message ? error.message : String(error)), 'err');
+        }
+      });
+
+      document.getElementById('decrypt').addEventListener('click', function () {
+        try {
+          const plaintext = api.decryptPayload(ciphertextInput.value, secretInput.value);
+          plaintextInput.value = plaintext;
+          setStatus('解密成功，明文长度=' + plaintext.length, 'ok');
+        } catch (error) {
+          setStatus('解密失败：' + (error && error.message ? error.message : String(error)), 'err');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

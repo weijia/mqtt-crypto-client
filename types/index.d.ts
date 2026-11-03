@@ -171,14 +171,15 @@ export declare function isResponseCommand(command: Record<string, any> | null | 
 export declare function encryptPayload(
   plaintext: string,
   secret: string,
-  options?: { saltLength?: number; salt?: Buffer },
+  options?: { saltLength?: number; salt?: Uint8Array },
 ): string;
 export declare function decryptPayload(ciphertext: string, secret: string): string;
 export declare function tryDecrypt(ciphertext: string, secret: string): string | null;
 export declare function isEncryptedPayload(value: string): boolean;
-export declare function deriveKeyAndIv(secret: string, salt: Buffer, keyLength?: number, ivLength?: number): {
-  key: Buffer;
-  iv: Buffer;
+/** Node 返回 Buffer；浏览器 IIFE 返回 Uint8Array（均兼容 Uint8Array 操作） */
+export declare function deriveKeyAndIv(secret: string, salt: Uint8Array, keyLength?: number, ivLength?: number): {
+  key: Uint8Array;
+  iv: Uint8Array;
 };
 
 export declare function decodeIncoming(text: string, secret?: string): {
