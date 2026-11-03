@@ -1,40 +1,67 @@
 /**
- * IIFE 产物防回归检查：
- * 1. 静态扫描残留的 Node 全局引用（process.env / global. / process.nextTick 调用）
- * 2. 在“没有 process/Buffer 全局”的 vm 沙箱中加载，验证全局 API 与加解密
+ * 浏览器产物防回归检查（构建后执行，任一失败即构建失败）：
  *
- * 任一失败则构建失败（非零退出）。
+ * 1. 用 AST 扫描 `dist/index.browser.js` 与 `dist/index.iife.js` 的自由全局引用
+ *    （`process` / `Buffer` / `global` 的任意用法，而不只是 `process.env`）
+ * 2. 确认产物没有引用 Node 内置模块（`node:crypto`、`node:events` 等）
+ * 3. 在“没有 process/Buffer 全局”的 vm 沙箱中加载 IIFE，验证 API、加解密与互通
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { findNodeBuiltinImports, scanFreeReferences } from './lib/scan-artifact.mjs';
 import { encryptPayload as nodeEncrypt, decryptPayload as nodeDecrypt } from '../src/crypto.js';
 
-const bundlePath = fileURLToPath(new URL('../dist/index.iife.js', import.meta.url));
-const code = fs.readFileSync(bundlePath, 'utf8');
+const artifacts = [
+  { name: 'dist/index.browser.js', label: '浏览器 ESM' },
+  { name: 'dist/index.iife.js', label: '浏览器 IIFE' },
+];
 
 /** @param {string} message */
 function fail(message) {
-  console.error(`[check-iife] FAIL: ${message}`);
+  console.error(`[check-browser] FAIL: ${message}`);
   process.exit(1);
 }
 
-const staticChecks = [
-  { pattern: /process\.env/g, label: 'process.env（应由构建期 define 消除）' },
-  { pattern: /\bglobal\./g, label: 'global.（应替换为 globalThis）' },
-  { pattern: /process\.nextTick\(/g, label: 'process.nextTick 调用（应被消除或由内联 shim 处理）' },
-];
+for (const { name, label } of artifacts) {
+  const filePath = fileURLToPath(new URL(`../${name}`, import.meta.url));
+  if (!fs.existsSync(filePath)) fail(`${label}产物不存在: ${name}`);
+  const code = fs.readFileSync(filePath, 'utf8');
 
-for (const { pattern, label } of staticChecks) {
-  const count = (code.match(pattern) ?? []).length;
-  if (count > 0) fail(`产物仍含 ${label}，共 ${count} 处`);
+  const { refs, declarations } = scanFreeReferences(code, ['process', 'Buffer', 'global']);
+  const byName = (/** @type {string} */ target) => refs.filter((ref) => ref.name === target);
+
+  for (const target of ['process', 'global']) {
+    const hits = byName(target);
+    if (hits.length > 0) {
+      const sample = hits
+        .slice(0, 3)
+        .map((hit) => `${hit.kind}@${hit.line}:${hit.col}`)
+        .join(', ');
+      fail(`${label}含 ${hits.length} 处自由 ${target} 引用（例如 ${sample}）`);
+    }
+  }
+
+  const bufferRefs = byName('Buffer');
+  if (bufferRefs.length > 0 && !declarations.some((decl) => decl.name === 'Buffer')) {
+    fail(`${label}含 ${bufferRefs.length} 处自由 Buffer 引用，且无本地 buffer polyfill 定义`);
+  }
+
+  const nodeBuiltins = findNodeBuiltinImports(code);
+  if (nodeBuiltins.length > 0) {
+    fail(`${label}仍引用 Node 内置模块: ${nodeBuiltins.join(', ')}`);
+  }
+
+  console.log(
+    `[check-browser] ${name}: ${(code.length / 1024).toFixed(1)} kB，` +
+      `自由 process=0 / global=0 / Buffer=${bufferRefs.length}(本地定义 ${declarations.filter((d) => d.name === 'Buffer').length})，无 Node 内置模块`,
+  );
 }
 
-// 白名单理由：mqtt 浏览器构建内置 buffer polyfill，产物内会出现 Buffer 的本地定义/属性赋值。
-if (/\bBuffer\b/.test(code) && !/\bBuffer\s*=/.test(code)) {
-  fail('产物使用了 Buffer 但未发现内置 buffer polyfill 定义');
-}
+const iifePath = fileURLToPath(new URL('../dist/index.iife.js', import.meta.url));
+const code = fs.readFileSync(iifePath, 'utf8');
 
 const sandbox = {
   console,
@@ -106,4 +133,4 @@ if (vm.runInContext('typeof process', sandbox) !== 'undefined') {
   fail('IIFE 加载后向全局注入了 process，预期为局部 shim');
 }
 
-console.log(`[check-iife] OK: ${(code.length / 1024).toFixed(1)} kB，无 process.env/global. 残留，无 process 沙箱通过`);
+console.log('[check-browser] OK: 无 process/Buffer/global 自由引用，无 Node 内置模块，无 process 沙箱通过');

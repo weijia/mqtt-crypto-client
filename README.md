@@ -33,7 +33,7 @@ const { createClient } = require('mqtt-crypto-client');
 不经过 bundler，直接用 `<script>` 引入。构建产物暴露全局 `MqttCryptoClient`，包含 `createClient`、加解密工具、信封/topic 工具等全部公开导出。
 
 ```html
-<script src="https://unpkg.com/mqtt-crypto-client@0.2.1/dist/index.iife.js"></script>
+<script src="https://unpkg.com/mqtt-crypto-client@0.2.2/dist/index.iife.js"></script>
 <script>
   const { createClient, encryptPayload, decryptPayload, buildTopic } = MqttCryptoClient;
 
@@ -53,18 +53,43 @@ const { createClient } = require('mqtt-crypto-client');
 
 CDN 地址模板（`unpkg` / `jsdelivr` 字段均指向 IIFE）：
 
-- `https://unpkg.com/mqtt-crypto-client@0.2.1/dist/index.iife.js`
-- `https://cdn.jsdelivr.net/npm/mqtt-crypto-client@0.2.1/dist/index.iife.js`
+- `https://unpkg.com/mqtt-crypto-client@0.2.2/dist/index.iife.js`
+- `https://cdn.jsdelivr.net/npm/mqtt-crypto-client@0.2.2/dist/index.iife.js`
 - 省略版本号会取 latest：`https://unpkg.com/mqtt-crypto-client`、`https://cdn.jsdelivr.net/npm/mqtt-crypto-client`
 
 说明：
 
 - 浏览器端使用 **crypto-js** 做同步 AES，格式与 Node 端、原 CryptoJS 实现逐字节一致（`Salted__` + 8 字节 salt + AES-256-CBC + `EVP_BytesToKey(MD5,1)` + PKCS#7 + base64）；Node 端仍用 `node:crypto`，行为不变。
-- IIFE 构建期会把 `process.env.*`、`global` 静态替换掉；无法静态消除的裸 `process` 由内联最小 shim 兜底（不污染 `window.process`）。构建后脚本会扫描 `process.env`/`global.` 残留，并在无 `process`/`Buffer` 的 vm 沙箱中加载验证，失败即构建失败。
+- 浏览器产物构建期会把 `process.env.*`、`global` 静态替换掉；无法静态消除的裸 `process` 由内联最小 shim 兜底（不污染 `window.process`）。构建后会做 **AST 级扫描**（覆盖 `process.nextTick`、`process.on`、`typeof process`、`process` 传参、`Buffer`、`global` 等全部形式），并在无 `process`/`Buffer` 的 vm 沙箱中加载验证，失败即构建失败。
 - 浏览器下 `encryptPayload` 的 `salt` 参数接受 `Uint8Array` 或 crypto-js `WordArray`；`deriveKeyAndIv` 返回 `Uint8Array`。
-- IIFE 内含 mqtt 浏览器构建与 crypto-js，体积较大；Node 用户不需要该产物。
+- 浏览器产物内含 mqtt 浏览器构建与 crypto-js，体积较大；Node 用户不需要这些产物。
 - 该加密格式没有 MAC/AEAD，不能防篡改，详见下方安全说明。
 - 本地演示：先 `npm run build`，再打开 [`examples/script-tag.html`](./examples/script-tag.html)。
+
+## 浏览器 bundler 引入（Vite / webpack / Rollup）
+
+浏览器环境通过包描述里的 `browser` 条件解析到 `dist/index.browser.js`（`browser` 字段作为兜底），因此不需要为这个库配置 `process` / `crypto` / `events` / `stream` 的 Node polyfill：
+
+```js
+import { createClient } from 'mqtt-crypto-client';
+```
+
+```js
+// package.json（本包）
+"browser": "./dist/index.browser.js",
+"exports": {
+  ".": {
+    "types": "./types/index.d.ts",
+    "browser": "./dist/index.browser.js",  // 浏览器优先命中
+    "import": "./src/index.js",            // Node ESM：使用 node:crypto
+    "require": "./dist/index.cjs"          // Node CJS
+  }
+}
+```
+
+- Node 侧行为不变：`import` 仍解析到 `src/index.js`，`require` 仍解析到 `dist/index.cjs`。
+- 浏览器产物已内联 crypto-js（CryptoJS 兼容格式）、本地 EventEmitter 与 mqtt 浏览器构建，既不含 `node:*` 内置模块，也不含裸 `process`/`Buffer`/`global`。
+- 若升级后仍报 `process is not defined`，通常是 bundler 缓存了旧预打包结果：Vite 清理 `node_modules/.vite` 后重启；webpack 关闭 `cache` 或删除 `node_modules/.cache`。确认实际加载的文件可检查产物里是否包含 `const SALT_HEADER` 等浏览器实现特征，或直接 `grep -c "node:crypto" node_modules/mqtt-crypto-client/dist/index.browser.js`（应为 0）。
 
 ## 快速开始
 
@@ -239,9 +264,9 @@ CryptoJS -> node: OK
 
 ```bash
 npm install
-npm test          # node:test，45 个用例（含浏览器/Node 互通与 IIFE 冒烟）
+npm test          # node:test，49 个用例（含浏览器/Node 互通、IIFE 冒烟、浏览器 ESM 入口）
 npm run typecheck # tsc checkJs
-npm run build     # dist/index.cjs + 浏览器 IIFE dist/index.iife.js
+npm run build     # dist/index.cjs + 浏览器 ESM/IIFE（dist/index.browser.js、dist/index.iife.js）
 npm pack --dry-run
 ```
 

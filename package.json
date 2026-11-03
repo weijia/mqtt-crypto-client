@@ -1,6 +1,6 @@
 {
   "name": "mqtt-crypto-client",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "MQTT over WebSocket client with CryptoJS-compatible AES envelope encryption, heartbeat, message deduplication and request/response helpers.",
   "keywords": [
     "mqtt",
@@ -14,12 +14,14 @@
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./src/index.js",
+  "browser": "./dist/index.browser.js",
   "types": "./types/index.d.ts",
   "unpkg": "./dist/index.iife.js",
   "jsdelivr": "./dist/index.iife.js",
   "exports": {
     ".": {
       "types": "./types/index.d.ts",
+      "browser": "./dist/index.browser.js",
       "import": "./src/index.js",
       "require": "./dist/index.cjs"
     },
@@ -37,7 +39,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "node scripts/build-cjs.mjs && node scripts/build-iife.mjs && node scripts/check-iife.mjs",
+    "build": "node scripts/build-cjs.mjs && node scripts/build-browser.mjs && node scripts/check-browser.mjs",
     "test": "node --test",
     "typecheck": "tsc -p tsconfig.json",
     "prepack": "npm run build",
@@ -49,6 +51,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "acorn": "^8.19.0",
+    "acorn-walk": "^8.3.5",
     "crypto-js": "^4.2.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.0"

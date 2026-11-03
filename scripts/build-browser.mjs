@@ -1,9 +1,14 @@
 /**
- * 浏览器 IIFE 构建：dist/index.iife.js，全局名 MqttCryptoClient。
+ * 浏览器产物构建：
  *
- * - 将 `./crypto.js`（依赖 node:crypto）替换为 `./crypto-browser.js`（crypto-js）
- * - 将 `node:events` 替换为本地 EventEmitter shim
- * - mqtt 使用其 browser 导出
+ * - `dist/index.iife.js`：`<script>` 直引，全局名 `MqttCryptoClient`
+ * - `dist/index.browser.js`：供 bundler 使用的 ESM（package.json `browser` 条件指向它）
+ *
+ * 两者共用同一套构建期替换：
+ * - `./crypto.js`（node:crypto）→ `./crypto-browser.js`（crypto-js）
+ * - `node:events` → 本地 EventEmitter shim
+ * - mqtt 走其 browser 导出
+ * - `process.env.*` / `global` 等由 define 静态消除，裸 `process` 由内联 shim 兜底
  */
 import path from 'node:path';
 import { build } from 'esbuild';
@@ -30,15 +35,13 @@ const browserEventsPlugin = {
   },
 };
 
-await build({
+/** @type {import('esbuild').BuildOptions} */
+const sharedOptions = {
   absWorkingDir: root,
   entryPoints: ['src/browser.js'],
-  outfile: 'dist/index.iife.js',
   bundle: true,
   platform: 'browser',
   target: ['es2020'],
-  format: 'iife',
-  globalName: 'MqttCryptoClient',
   mainFields: ['browser', 'module', 'main'],
   conditions: ['browser'],
   minify: true,
@@ -55,4 +58,17 @@ await build({
   inject: [path.join(root, 'src/process-browser.js')],
   plugins: [browserCryptoPlugin, browserEventsPlugin],
   logLevel: 'info',
+};
+
+await build({
+  ...sharedOptions,
+  format: 'iife',
+  globalName: 'MqttCryptoClient',
+  outfile: 'dist/index.iife.js',
+});
+
+await build({
+  ...sharedOptions,
+  format: 'esm',
+  outfile: 'dist/index.browser.js',
 });
