@@ -33,7 +33,7 @@ const { createClient } = require('mqtt-crypto-client');
 不经过 bundler，直接用 `<script>` 引入。构建产物暴露全局 `MqttCryptoClient`，包含 `createClient`、加解密工具、信封/topic 工具等全部公开导出。
 
 ```html
-<script src="https://unpkg.com/mqtt-crypto-client@0.2.0/dist/index.iife.js"></script>
+<script src="https://unpkg.com/mqtt-crypto-client@0.2.1/dist/index.iife.js"></script>
 <script>
   const { createClient, encryptPayload, decryptPayload, buildTopic } = MqttCryptoClient;
 
@@ -53,13 +53,14 @@ const { createClient } = require('mqtt-crypto-client');
 
 CDN 地址模板（`unpkg` / `jsdelivr` 字段均指向 IIFE）：
 
-- `https://unpkg.com/mqtt-crypto-client@0.2.0/dist/index.iife.js`
-- `https://cdn.jsdelivr.net/npm/mqtt-crypto-client@0.2.0/dist/index.iife.js`
+- `https://unpkg.com/mqtt-crypto-client@0.2.1/dist/index.iife.js`
+- `https://cdn.jsdelivr.net/npm/mqtt-crypto-client@0.2.1/dist/index.iife.js`
 - 省略版本号会取 latest：`https://unpkg.com/mqtt-crypto-client`、`https://cdn.jsdelivr.net/npm/mqtt-crypto-client`
 
 说明：
 
 - 浏览器端使用 **crypto-js** 做同步 AES，格式与 Node 端、原 CryptoJS 实现逐字节一致（`Salted__` + 8 字节 salt + AES-256-CBC + `EVP_BytesToKey(MD5,1)` + PKCS#7 + base64）；Node 端仍用 `node:crypto`，行为不变。
+- IIFE 构建期会把 `process.env.*`、`global` 静态替换掉；无法静态消除的裸 `process` 由内联最小 shim 兜底（不污染 `window.process`）。构建后脚本会扫描 `process.env`/`global.` 残留，并在无 `process`/`Buffer` 的 vm 沙箱中加载验证，失败即构建失败。
 - 浏览器下 `encryptPayload` 的 `salt` 参数接受 `Uint8Array` 或 crypto-js `WordArray`；`deriveKeyAndIv` 返回 `Uint8Array`。
 - IIFE 内含 mqtt 浏览器构建与 crypto-js，体积较大；Node 用户不需要该产物。
 - 该加密格式没有 MAC/AEAD，不能防篡改，详见下方安全说明。

@@ -43,7 +43,10 @@ function loadBundle() {
   sandbox.self = sandbox;
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
+  assert.equal(vm.runInContext('typeof process', sandbox), 'undefined', '沙箱不应有 process');
+  assert.equal(vm.runInContext('typeof Buffer', sandbox), 'undefined', '沙箱不应有 Buffer');
   vm.runInContext(readFileSync(bundlePath, 'utf8'), sandbox, { filename: 'index.iife.js' });
+  assert.equal(vm.runInContext('typeof process', sandbox), 'undefined', 'IIFE 不应向全局注入 process');
   return sandbox;
 }
 

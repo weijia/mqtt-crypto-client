@@ -44,7 +44,15 @@ await build({
   minify: true,
   sourcemap: true,
   legalComments: 'none',
-  define: { global: 'globalThis' },
+  define: {
+    global: 'globalThis',
+    'process.env.NODE_ENV': '"production"',
+    'process.env': '{}',
+    'process.browser': 'true',
+    'process.platform': '"browser"',
+    'process.version': '"0.0.0"',
+  },
+  inject: [path.join(root, 'src/process-browser.js')],
   plugins: [browserCryptoPlugin, browserEventsPlugin],
   logLevel: 'info',
 });
