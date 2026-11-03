@@ -1,0 +1,68 @@
+{
+  "name": "mqtt-crypto-client",
+  "version": "0.1.0",
+  "description": "MQTT over WebSocket client with CryptoJS-compatible AES envelope encryption, heartbeat, message deduplication and request/response helpers.",
+  "keywords": [
+    "mqtt",
+    "websocket",
+    "crypto",
+    "aes",
+    "encryption",
+    "crypto-js",
+    "iot"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./src/index.js",
+  "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./src/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist",
+    "types",
+    "README.md",
+    "NPM-SETUP.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/build-cjs.mjs",
+    "test": "node --test",
+    "typecheck": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm test && npm run typecheck && npm run build",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "mqtt": "^5.15.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weijia/mqtt-crypto-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/weijia/mqtt-crypto-client/issues"
+  },
+  "homepage": "https://github.com/weijia/mqtt-crypto-client#readme",
+  "author": "weijia",
+  "license": "MIT"
+}
