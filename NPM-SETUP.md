@@ -1,10 +1,10 @@
 # npm 发布设置（Trusted Publishing / OIDC）
 
-本文只描述**需要你在 npmjs 与 GitHub 上完成的一次性设置**。本地工作区与 CI 配置已就绪，未执行 `npm publish`；GitHub 远程仓库尚未创建（`git init`/commit/push 被本地权限策略拦截，待用户授权）。
+本文只描述**需要你在 npmjs 上完成的一次性设置**。本地工作区、CI 配置与 GitHub 公开仓库均已就绪，未执行 `npm publish`。
 
 - 包名：`mqtt-crypto-client`
 - npm 包页面（首次发布后生成）：<https://www.npmjs.com/package/mqtt-crypto-client>
-- GitHub 仓库（待创建）：<https://github.com/weijia/mqtt-crypto-client>
+- GitHub 仓库：<https://github.com/weijia/mqtt-crypto-client>（public，`main` 已推送）
 
 - 发布工作流：`.github/workflows/publish.yml`（文件名 `publish.yml`）
 - 触发方式：推送 `v*` tag，或发布 GitHub Release

@@ -5,13 +5,10 @@
 
 从 `vue-dialog-userscript` 中抽取的 **MQTT over WebSocket + AES 信封加密** 客户端。保留原脚本的真实协议行为：`{ id, msgId, user, msg, time }` 信封、CryptoJS 兼容的 AES 口令加密、QoS 1、30s 心跳、`ping/pong`、5s 去重、忽略自身消息、请求/响应按 `msgId` 配对。
 
-- 仓库（待创建/推送）：<https://github.com/weijia/mqtt-crypto-client>
+- 仓库：<https://github.com/weijia/mqtt-crypto-client>
 - 包名：`mqtt-crypto-client`
 - 运行时：Node.js **18+**（CI 发布使用 Node 24）
 - 依赖：仅 [`mqtt`](https://www.npmjs.com/package/mqtt)；加解密使用内置 `node:crypto`
-
-> **仓库状态**：本地代码与 CI 配置已完成，但 `git init` / commit / push / GitHub 建库被当前执行环境的权限策略拦截，远程仓库尚不存在。需要用户确认后执行（命令见交付说明）。
-
 
 ## 安装
 
